@@ -1,11 +1,10 @@
-# app/crud.py
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.models import User, MediaTask  # проверь название модели задач (Task или MediaTask)
-from app.schemas import UserCreate, MediaTaskCreate
+from app.models import User, MediaTask, TaskStatus
+from app.schemas import UserCreate
 from app.auth import get_password_hash
 
 
@@ -37,26 +36,34 @@ async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
 # --- TASKS ---
 
 async def get_user_tasks(db: AsyncSession, user_id: UUID) -> Sequence[MediaTask]:
-    """Получить список всех задач конкретного пользователя."""
+    """Отримати список усіх задач конкретного користувача."""
     result = await db.execute(
-        select(MediaTask).where(MediaTask.user_id == user_id)
+        select(MediaTask).where(MediaTask.owner_id == user_id)
     )
     return result.scalars().all()
 
 
 async def get_task_by_id(db: AsyncSession, task_id: UUID) -> MediaTask | None:
-    """Получить задачу по её ID."""
+    """Отримати задачу за її ID."""
     result = await db.execute(
         select(MediaTask).where(MediaTask.id == task_id)
     )
     return result.scalars().first()
 
 
-async def create_task(db: AsyncSession, task_in: MediaTaskCreate, user_id: UUID) -> MediaTask:
-    """Создать новую задачу."""
+async def create_media_task_with_file(
+    db: AsyncSession, 
+    user_id: UUID, 
+    original_filename: str, 
+    file_path: str
+) -> MediaTask:
+    """Створення задачі з прив'язаним файлом."""
     db_task = MediaTask(
-        **task_in.model_dump(),
-        user_id=user_id
+        id=uuid4(),
+        owner_id=user_id,
+        original_filename=original_filename,
+        storage_path=file_path,
+        status=TaskStatus.PENDING
     )
     db.add(db_task)
     await db.commit()
