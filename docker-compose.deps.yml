@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mediapulse}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mediapulse_secret}
       POSTGRES_DB: ${POSTGRES_DB:-mediapulse}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -19,3 +21,36 @@ services:
     container_name: mediapulse-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: mediapulse-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+   # Сервис, который автоматически создаст бакеты в MinIO
+  createbuckets:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Попытка подключения к MinIO...';
+      until /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; do
+        echo 'Ожидание запуска MinIO...';
+        sleep 1;
+      done;
+      echo 'Создание бакетов...';
+      /usr/bin/mc mb --ignore-existing myminio/media-originals;
+      /usr/bin/mc mb --ignore-existing myminio/media-processed;
+      echo 'Бакеты успешно созданы!';
+      "   
+
+volumes:
+  postgres_data:
+  minio_data:
