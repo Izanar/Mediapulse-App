@@ -1,3 +1,4 @@
+# app/config.py
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -11,6 +12,11 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "mediapulse"
     POSTGRES_PASSWORD: str = "mediapulse_secret"
     POSTGRES_DB: str = "mediapulse"
+
+    # Auth & JWT settings
+    SECRET_KEY: str = "your-super-secret-key-change-me-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     @property
     def ASYNC_DATABASE_URI(self) -> str:

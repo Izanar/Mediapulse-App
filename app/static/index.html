@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Mediapulse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1 id="logo">MediaPulse</h1>
+        <div class="header-right">
+            <span id="user-badge">Не авторизован</span>
+            <button id="logout-btn" class="btn-logout hidden">Выйти</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Формы авторизации / регистрации -->
+        <section id="auth-section">
+            <div id="login-form-container" class="glass-card">
+                <h2>Вход</h2>
+                <form id="login-form">
+                    <input type="text" id="login-username" name="username" placeholder="Логин" autocomplete="off" required>
+                    <input type="password" name="password" placeholder="Пароль" required>
+                    <button type="submit">Войти</button>
+                </form>
+                <p class="auth-switch">Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
+            </div>
+
+            <div id="register-form-container" class="glass-card hidden">
+                <h2>Регистрация</h2>
+                <form id="register-form">
+                    <input type="text" id="reg-username" placeholder="Логин" autocomplete="off" required>
+                    <input type="password" id="reg-password" placeholder="Пароль" required>
+                    <button type="submit">Зарегистрироваться</button>
+                </form>
+                <p class="auth-switch">Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
+            </div>
+        </section>
+
+        <!-- Рабочий экран -->
+        <section id="app-section" class="glass-card hidden">
+            <h2>Мои медиафайлы</h2>
+            <div class="upload-zone" id="upload-zone">
+                <p>📁 Перетащите файл сюда или нажмите для выбора</p>
+                <input type="file" id="file-input" class="hidden">
+            </div>
+            <div id="tasks-list"></div>
+        </section>
+    </main>
+
+    <!-- Контейнер для всплывающих уведомлений -->
+    <div id="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

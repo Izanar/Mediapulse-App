@@ -1,3 +1,5 @@
+# app/models.py
+from __future__ import annotations
 import enum
 import uuid
 from sqlalchemy import String, Enum, Boolean, ForeignKey
@@ -24,7 +26,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    tasks: Mapped[list["MediaTask"]] = relationship("MediaTask", back_populates="owner")
+    tasks: Mapped[list[MediaTask]] = relationship("MediaTask", back_populates="owner")
 
 
 class MediaTask(Base):

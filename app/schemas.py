@@ -1,28 +1,39 @@
-from uuid import UUID
-from pydantic import BaseModel, EmailStr, ConfigDict
+# app/schemas.py
+import uuid
+from pydantic import BaseModel, ConfigDict
+from app.models import TaskStatus
 
-
-# --- USER SCHEMAS ---
+# --- User Schemas ---
 class UserBase(BaseModel):
-    email: EmailStr
-
+    username: str
 
 class UserCreate(UserBase):
     password: str
 
-
 class UserResponse(UserBase):
-    id: UUID
+    id: uuid.UUID
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
 
-
-# --- TOKEN SCHEMAS ---
+# --- Auth Schemas ---
 class Token(BaseModel):
     access_token: str
     token_type: str
 
+# --- MediaTask Schemas ---
+class MediaTaskBase(BaseModel):
+    original_filename: str
+    is_public: bool = False
 
-class TokenData(BaseModel):
-    email: str | None = None
+class MediaTaskCreate(MediaTaskBase):
+    pass
+
+class MediaTaskResponse(MediaTaskBase):
+    id: uuid.UUID
+    storage_path: str
+    processed_path: str | None = None
+    status: TaskStatus
+    owner_id: uuid.UUID | None = None
+
+    model_config = ConfigDict(from_attributes=True)

@@ -12,6 +12,3 @@ deps-down:
 
 migrate:
 	$(VENV_ALEMBIC) upgrade head
-
-dev:
-	$(VENV_UVICORN) app.main:app --reload
