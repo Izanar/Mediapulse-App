@@ -207,13 +207,58 @@ async function loadTasks() {
         }
 
         tasksList.innerHTML = tasks.map(t => `
-            <div style="background: rgba(15,23,42,0.6); padding: 0.75rem 1rem; border-radius: 8px; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--card-border);">
-                <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">📄 ${t.original_filename}</span>
-                <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">${t.status}</span>
+            <div id="task-${t.id}" style="background: rgba(15,23,42,0.6); padding: 0.75rem 1rem; border-radius: 8px; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--card-border);">
+                <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; max-width: 250px;">
+                    <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📄 ${t.original_filename}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">${t.status}</span>
+                    <button onclick="deleteTask('${t.id}')" title="Видалити" style="background: transparent; border: none; color: #ff5c5c; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: background 0.2s;">✕</button>
+                </div>
             </div>
         `).join('');
     } catch (err) {
         console.error('Ошибка загрузки задач:', err);
+    }
+}
+
+// Удаление задачи по её ID
+async function deleteTask(taskId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showToast('Ошибка: вы не авторизованы');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/tasks/${taskId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok && res.status !== 204) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Ошибка удаления');
+        }
+
+        showToast('Файл успешно удален');
+        
+        // Удаляем элемент из DOM без перезагрузки всей страницы
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (taskElement) {
+            taskElement.remove();
+        }
+        
+        // Если список стал пустым, выведем заглушку
+        const tasksList = document.getElementById('tasks-list');
+        if (tasksList && tasksList.children.length === 0) {
+            tasksList.innerHTML = '<p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 1rem; text-align: center;">Загруженных файлов пока нет</p>';
+        }
+
+    } catch (err) {
+        showToast(`Ошибка: ${err.message}`);
     }
 }
 

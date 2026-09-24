@@ -9,6 +9,7 @@ engine = create_async_engine(
     future=True
 )
 
+# Единая фабрика асинхронных сессий
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,

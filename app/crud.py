@@ -23,8 +23,7 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
     hashed_password = get_password_hash(user_in.password)
     db_user = User(
-        username=getattr(user_in, "username", user_in.email),
-        email=getattr(user_in, "email", None),
+        username=user_in.username,
         hashed_password=hashed_password,
     )
     db.add(db_user)
@@ -69,3 +68,9 @@ async def create_media_task_with_file(
     await db.commit()
     await db.refresh(db_task)
     return db_task
+
+
+async def delete_media_task(db: AsyncSession, task: MediaTask):
+    """Видалення задачі."""
+    await db.delete(task)
+    await db.commit()
