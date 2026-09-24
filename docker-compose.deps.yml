@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: mediapulse-postgres
     environment:
-      POSTGRES_USER: mediapulse
-      POSTGRES_PASSWORD: mediapulse_secret
-      POSTGRES_DB: mediapulse
+      POSTGRES_USER: ${POSTGRES_USER:-mediapulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mediapulse_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mediapulse}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mediapulse -d mediapulse"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mediapulse} -d $${POSTGRES_DB:-mediapulse}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -18,4 +18,4 @@ services:
     image: redis:7-alpine
     container_name: mediapulse-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
