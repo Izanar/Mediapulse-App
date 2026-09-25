@@ -21,23 +21,28 @@ services:
     container_name: mediapulse-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
 
   minio:
     image: quay.io/minio/minio:latest
     container_name: mediapulse-minio
-    command: server /data --console-address ":9001"
+    command: server /data --console-address "0.0.0.0:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
 
-   # Сервис, который автоматически создаст бакеты в MinIO
   createbuckets:
     image: quay.io/minio/mc:latest
     depends_on:
       - minio
+    tmpfs:
+      - /root/.mc
     entrypoint: >
       /bin/sh -c "
       echo 'Попытка подключения к MinIO...';
@@ -45,12 +50,12 @@ services:
         echo 'Ожидание запуска MinIO...';
         sleep 1;
       done;
-      echo 'Создание бакетов...';
+      echo 'Создание бакета...';
       /usr/bin/mc mb --ignore-existing myminio/media-originals;
-      /usr/bin/mc mb --ignore-existing myminio/media-processed;
-      echo 'Бакеты успешно созданы!';
-      "   
+      echo 'Бакет успешно создан!';
+      "
 
 volumes:
   postgres_data:
   minio_data:
+  redis_data:

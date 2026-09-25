@@ -2,56 +2,110 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Mediapulse</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPulse — Сервис инверсии и обработки изображений</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
 </head>
 <body>
-    <header>
-        <h1 id="logo">MediaPulse</h1>
-        <div class="header-right">
-            <span id="user-badge">Не авторизован</span>
-            <button id="logout-btn" class="btn-logout hidden">Выйти</button>
+    <div id="toast-container"></div>
+
+    <header class="header">
+        <div class="logo-container">
+            <span id="logo" class="logo">⚡ MediaPulse</span>
+            <span class="version-tag">v1.0.0-enterprise</span>
+        </div>
+        <div class="user-status">
+            <span id="user-badge" class="badge">Не авторизован</span>
+            <button id="logout-btn" class="btn btn-secondary hidden">Выйти</button>
         </div>
     </header>
 
-    <main>
-        <!-- Формы авторизации / регистрации -->
-        <section id="auth-section">
-            <div id="login-form-container" class="glass-card">
-                <h2>Вход</h2>
+    <main class="container">
+        <!-- Блок описания сервиса -->
+        <section class="card intro-card">
+            <h2>Добро пожаловать в MediaPulse</h2>
+            <p class="intro-text">
+                MediaPulse — это высокопроизводительный Cloud-Native сервис для асинхронной обработки и инверсии цветов изображений. 
+                Загружайте ваши фотографии, управляйте уровнем приватности и мгновенно получайте обработанные результаты.
+            </p>
+            <div class="tech-stack-tags">
+                <span class="tech-tag">FastAPI</span>
+                <span class="tech-tag">Celery</span>
+                <span class="tech-tag">Redis</span>
+                <span class="tech-tag">PostgreSQL</span>
+                <span class="tech-tag">MinIO / S3</span>
+                <span class="tech-tag">Docker & K8s</span>
+            </div>
+        </section>
+
+        <!-- Секция авторизации и регистрации -->
+        <section id="auth-section" class="card margin-top">
+            <div id="login-form-container">
+                <h2>Вход в систему</h2>
                 <form id="login-form">
-                    <input type="text" id="login-username" name="username" placeholder="Логин" autocomplete="off" required>
-                    <input type="password" name="password" placeholder="Пароль" required>
-                    <button type="submit">Войти</button>
+                    <div class="form-group">
+                        <label for="login-username">Логин (введите 'matrix' или 'sudo' для SRE-режима)</label>
+                        <input type="text" id="login-username" name="username" placeholder="user" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Пароль</label>
+                        <input type="password" id="login-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
                 </form>
-                <p class="auth-switch">Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
+                <p class="auth-switch">
+                    Еще нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a>
+                </p>
             </div>
 
-            <div id="register-form-container" class="glass-card hidden">
+            <div id="register-form-container" class="hidden">
                 <h2>Регистрация</h2>
                 <form id="register-form">
-                    <input type="text" id="reg-username" placeholder="Логин" autocomplete="off" required>
-                    <input type="password" id="reg-password" placeholder="Пароль" required>
-                    <button type="submit">Зарегистрироваться</button>
+                    <div class="form-group">
+                        <label for="reg-username">Имя пользователя</label>
+                        <input type="text" id="reg-username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Пароль (мин. 8 символов, A-Z, a-z, 0-9)</label>
+                        <input type="password" id="reg-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                 </form>
-                <p class="auth-switch">Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
+                <p class="auth-switch">
+                    Уже есть аккаунт? <a href="#" id="show-login">Войти</a>
+                </p>
             </div>
         </section>
 
-        <!-- Рабочий экран -->
-        <section id="app-section" class="glass-card hidden">
-            <h2>Мои медиафайлы</h2>
-            <div class="upload-zone" id="upload-zone">
-                <p>📁 Перетащите файл сюда или нажмите для выбора</p>
-                <input type="file" id="file-input" class="hidden">
+        <!-- Основная рабочая зона (для авторизованных) -->
+        <section id="app-section" class="hidden margin-top">
+            <div class="card">
+                <h2>Загрузить новое изображение</h2>
+                <p class="section-desc">Выберите файл для асинхронной инверсии через Celery Worker</p>
+                <div id="upload-zone" class="upload-zone">
+                    <div class="upload-icon">📁</div>
+                    <p>Перетащите сюда картинку или кликните для выбора</p>
+                    <span class="file-hint">Поддерживаются PNG, JPG, JPEG, WEBP</span>
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
+                </div>
             </div>
-            <div id="tasks-list"></div>
+        </section>
+
+        <!-- Галерея / Список задач -->
+        <section class="card margin-top">
+            <div class="section-header">
+                <h2>Галерея медиафайлов</h2>
+                <div id="gallery-filters" class="filters hidden">
+                    <button id="filter-all" class="filter-btn active">Все мои</button>
+                    <button id="filter-public" class="filter-btn">Только публичные</button>
+                    <button id="filter-private" class="filter-btn">Только приватные</button>
+                </div>
+            </div>
+            <div id="tasks-list" class="tasks-grid">
+                <p class="empty-msg">Загрузка данных...</p>
+            </div>
         </section>
     </main>
-
-    <!-- Контейнер для всплывающих уведомлений -->
-    <div id="toast-container"></div>
-
-    <script src="/static/app.js"></script>
 </body>
 </html>

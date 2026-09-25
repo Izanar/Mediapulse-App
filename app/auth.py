@@ -1,51 +1,72 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from pwdlib import PasswordHash
-from pwdlib.hashers.bcrypt import BcryptHasher
+from passlib.context import CryptContext
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud, models
 from app.database import get_db
+from app.models import User
 
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY_CHANGE_THIS_IN_PRODUCTION"
+# --- Конфигурация ---
+SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-me")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
 
-pwd_context = PasswordHash((BcryptHasher(),))
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+# --- Хеширование и проверка паролей ---
+def _truncate_password(password: str) -> str:
+    """Ограничивает строку пароля 72 байтами для безопасности bcrypt."""
+    return password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """Проверяет соответствие пароля и хеша."""
+    truncated = _truncate_password(plain_password)
+    return pwd_context.verify(truncated, hashed_password)
+
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Генерирует bcrypt-хеш для пароля."""
+    truncated = _truncate_password(password)
+    return pwd_context.hash(truncated)
 
 
+# --- Работа с JWT токенами ---
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Создает JWT access токен."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+# --- Асинхронные зависимости авторизации (Dependencies) ---
 async def get_current_user(
-    db: AsyncSession = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
-) -> models.User:
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Получает текущего авторизованного пользователя или выбрасывает 401."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не удалось проверить учетные данные",
+        detail="Не удалось валидировать учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -54,7 +75,29 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    user = await crud.get_user_by_username(db, username=username)
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+
     if user is None:
         raise credentials_exception
+
     return user
+
+
+async def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    """Возвращает пользователя, если токен валиден, иначе None (для публичных рутов)."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        
+        result = await db.execute(select(User).where(User.username == username))
+        return result.scalars().first()
+    except JWTError:
+        return None
