@@ -1,0 +1,24 @@
+# Git & CI/CD
+.git
+.github
+.gitignore
+
+# Python / Virtual Environment
+.venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+
+# Local Environments & Secrets
+.env
+.env.*
+!.env.example
+
+# Docker / Logs / Docs
+Dockerfile*
+docker-compose*.yml
+*.log
+README.md

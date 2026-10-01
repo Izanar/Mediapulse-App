@@ -305,7 +305,6 @@ function renderTaskList(tasks) {
     const token = localStorage.getItem('token');
 
     tasksList.innerHTML = tasks.map(t => {
-        // Формуємо URL зображення: якщо шлях вже є повноцінним URL (S3/MinIO), використовуємо його, інакше додаємо локальний префікс /
         const formatUrl = (path) => {
             if (!path) return '';
             if (path.startsWith('http://') || path.startsWith('https://')) return path;
@@ -315,9 +314,8 @@ function renderTaskList(tasks) {
         const origUrl = formatUrl(t.storage_path);
         const procUrl = t.processed_path ? formatUrl(t.processed_path) : origUrl;
         const currentDisplayUrl = t.processed_path ? procUrl : origUrl;
-
-        // Відображаємо назву файлу з original_filename
         const fileName = t.original_filename || t.user_filename || 'Завантажений файл';
+        const isProcActive = !!t.processed_path;
 
         return `
             <div id="task-${t.id}" style="background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 8px; margin-top: 0.75rem; border: 1px solid var(--card-border, #1e293b);">
@@ -333,8 +331,8 @@ function renderTaskList(tasks) {
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="switchView('${t.id}', '${origUrl}')" style="font-size: 0.75rem; padding: 4px 8px; background: #334155; border: none; color: white; border-radius: 4px; cursor: pointer;">Оригінал</button>
-                        ${t.processed_path ? `<button onclick="switchView('${t.id}', '${procUrl}')" style="font-size: 0.75rem; padding: 4px 8px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Інверсія</button>` : ''}
+                        <button id="btn-orig-${t.id}" onclick="switchView('${t.id}', '${origUrl}', 'orig')" class="toggle-btn ${!isProcActive ? 'active' : ''}">Оригінал</button>
+                        ${t.processed_path ? `<button id="btn-proc-${t.id}" onclick="switchView('${t.id}', '${procUrl}', 'proc')" class="toggle-btn ${isProcActive ? 'active' : ''}">Інверсія</button>` : ''}
                     </div>
                     ${token ? `<button onclick="deleteTask('${t.id}')" style="font-size: 0.75rem; padding: 4px 8px; background: #ef4444; border: none; color: white; border-radius: 4px; cursor: pointer;">Видалити</button>` : ''}
                 </div>
@@ -347,9 +345,20 @@ function renderTaskList(tasks) {
     }).join('');
 }
 
-function switchView(taskId, url) {
+function switchView(taskId, url, mode) {
     const img = document.getElementById(`img-preview-${taskId}`);
     if (img) img.src = url;
+
+    const btnOrig = document.getElementById(`btn-orig-${taskId}`);
+    const btnProc = document.getElementById(`btn-proc-${taskId}`);
+
+    if (mode === 'orig') {
+        btnOrig?.classList.add('active');
+        btnProc?.classList.remove('active');
+    } else if (mode === 'proc') {
+        btnProc?.classList.add('active');
+        btnOrig?.classList.remove('active');
+    }
 }
 
 async function deleteTask(taskId) {

@@ -237,7 +237,20 @@ body {
 .hidden {
     display: none !important;
 }
+.toggle-btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: #334155;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
 
+.toggle-btn.active {
+    background: var(--accent-color, #3b82f6);
+}
 /* Toast-уведомления */
 #toast-container {
     position: fixed;
