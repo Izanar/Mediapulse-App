@@ -4,5 +4,6 @@ __pycache__/
 .env
 .env.local
 .env.*.local
-!.env.example
 .pytest_cache/
+.dockerignore
+

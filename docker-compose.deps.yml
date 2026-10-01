@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: mediapulse-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mediapulse}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mediapulse_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-mediapulse}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mediapulse} -d $${POSTGRES_DB:-mediapulse}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,38 +20,50 @@ services:
     image: redis:7-alpine
     container_name: mediapulse-redis
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT}:${REDIS_PORT}"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   minio:
     image: quay.io/minio/minio:latest
     container_name: mediapulse-minio
     command: server /data --console-address "0.0.0.0:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   createbuckets:
     image: quay.io/minio/mc:latest
+    container_name: mediapulse-createbuckets
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     tmpfs:
       - /root/.mc
     entrypoint: >
       /bin/sh -c "
       echo 'Попытка подключения к MinIO...';
-      until /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; do
+      until /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
         echo 'Ожидание запуска MinIO...';
         sleep 1;
       done;
       echo 'Создание бакета...';
-      /usr/bin/mc mb --ignore-existing myminio/media-originals;
+      /usr/bin/mc mb --ignore-existing myminio/${S3_BUCKET_NAME};
       echo 'Бакет успешно создан!';
       "
 
