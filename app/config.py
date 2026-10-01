@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MediaPulse API"
     VERSION: str = "0.1.0"
@@ -27,19 +28,29 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = "minioadmin"
     S3_BUCKET_NAME: str = "media-originals"
 
-    # Объединили конфигурацию в один modern-способ Pydantic v2
+    # Modern Pydantic v2 configuration
     model_config = SettingsConfigDict(
-        env_file=".env", 
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
-        case_sensitive=True
+        case_sensitive=True,
     )
 
+    # Динамічні властивості для з'єднань
     @property
     def ASYNC_DATABASE_URI(self) -> str:
+        """Асинхронний URL для SQLAlchemy (FastAPI)."""
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
+    def DATABASE_URL(self) -> str:
+        """Синхронний URL для Celery worker та psycopg2."""
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+    @property
     def REDIS_URL(self) -> str:
+        """URL підключення до Redis."""
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+
 
 settings = Settings()

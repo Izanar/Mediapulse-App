@@ -1,39 +1,55 @@
 import uuid
-import enum
+from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 from app.models import TaskStatus
 
-# --- User Schemas ---
+
+# --- Схемы для Пользователя (User) ---
 class UserBase(BaseModel):
     username: str
+
 
 class UserCreate(UserBase):
     password: str
 
-class UserResponse(UserBase):
+
+class UserOut(UserBase):
     id: uuid.UUID
-    is_active: bool
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
-# --- Auth Schemas ---
+
+# --- Схемы для Авторизации / Токенов ---
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- MediaTask Schemas ---
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+
+# --- Схемы для Задач (MediaTask) ---
 class MediaTaskBase(BaseModel):
     original_filename: str
     is_public: bool = False
 
+
 class MediaTaskCreate(MediaTaskBase):
     pass
 
-class MediaTaskResponse(MediaTaskBase):
+
+class MediaTaskResponse(BaseModel):
     id: uuid.UUID
+    original_filename: str
     storage_path: str
-    processed_path: str | None = None
+    processed_path: Optional[str] = None
     status: TaskStatus
-    owner_id: uuid.UUID | None = None
+    is_public: bool
+    owner_id: Optional[uuid.UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

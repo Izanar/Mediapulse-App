@@ -1,119 +1,200 @@
-import os
-from uuid import UUID, uuid4
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+import mimetypes
+import uuid
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import schemas
+from app.auth import get_current_user, get_current_user_optional
+from app.config import settings
 from app.database import get_db
-from app.auth import get_current_user
-from app import crud, schemas, models
-from app.worker import process_image_task
-from app.storage import upload_file_to_s3  # Импортируем функцию работы с S3
+from app.models import MediaTask, TaskStatus, User
+from app.storage import (
+    delete_file_from_s3,
+    download_file_from_s3,
+    generate_s3_paths,
+    upload_file_to_s3,
+)
+from app.worker import process_media_task
 
-router = APIRouter(prefix="/tasks", tags=["Tasks"])
-
-# Больше не нужно создавать UPLOAD_DIR локально, так как файлы идут сразу в S3
-
-
-@router.get("/", response_model=List[schemas.MediaTaskResponse])
-async def get_media_tasks(
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """Получение списка задач текущего пользователя."""
-    return await crud.get_user_tasks(db=db, user_id=current_user.id)
+router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.post("/upload", response_model=schemas.MediaTaskResponse, status_code=status.HTTP_201_CREATED)
-async def upload_media_file(
+@router.post("/", response_model=schemas.MediaTaskResponse, status_code=status.HTTP_201_CREATED)
+async def create_media_task(
     file: UploadFile = File(...),
-    is_public: bool = Form(False),  # Флаг публичности из формы
+    is_public: bool = Form(False),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
-    """
-    Приём файла, загрузка оригинала в S3, создание задачи в БД со статусом PENDING 
-    и постановка задачи в очередь Celery для инверсии цветов.
-    """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Файл не выбран")
+    """Принимает файл, загружает его в S3 и отправляет задачу в Celery."""
+    content = await file.read()
+    username = current_user.username if current_user else "anonymous"
+    user_filename = file.filename or "file"
 
-    # Читаем содержимое файла в оперативную память
-    try:
-        file_bytes = await file.read()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка чтения файла: {str(e)}")
-
-    # Формируем уникальный путь/ключ для файла в S3
-    file_id = uuid4()
-    storage_path = f"uploads/{file_id}_{file.filename}"
-
-    try:
-        # 1. Загружаем оригинал в S3 (в бакет media-originals)
-        upload_file_to_s3(file_bytes, "media-originals", storage_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка загрузки файла в S3: {str(e)}")
-
-    # 2. Создаем задачу в базе данных через CRUD-функцию
-    task = await crud.create_media_task_with_file(
-        db=db,
-        user_id=current_user.id,
-        original_filename=file.filename,
-        file_path=storage_path  # Сохраняем путь в S3
+    storage_key, processed_key, _ = generate_s3_paths(
+        username=username,
+        user_filename=user_filename,
+        filename=file.filename or "image.png"
     )
+
+    # Загружаем оригинал в S3
+    upload_file_to_s3(
+        file_bytes=content,
+        bucket_name=settings.S3_BUCKET_NAME,
+        object_name=storage_key
+    )
+
+    task_id = uuid.uuid4()
     
-    # Если нужно сразу сохранить флаг is_public (убедитесь, что поле есть в модели)
-    task.is_public = is_public
+    # Ссылка для фронтенда (прокси через FastAPI)
+    # Ссылка для фронтенда с правильным префиксом API
+    storage_url = f"/api/v1/tasks/file/{task_id}/original"
+    processed_url = f"/api/v1/tasks/file/{task_id}/processed"
+
+    new_task = MediaTask(
+        id=task_id,
+        original_filename=user_filename,
+        storage_path=storage_url,
+        processed_path=processed_url,  # Cразу закладываем путь для обработанного файла
+        storage_key=storage_key,       # Сохраняем реальный путь в S3
+        processed_key=processed_key,   # Сохраняем будущий путь обработанного файла в S3
+        is_public=is_public,
+        owner_id=current_user.id if current_user else None,
+        status=TaskStatus.PENDING,
+    )
+
+    db.add(new_task)
     await db.commit()
-    await db.refresh(task)
+    await db.refresh(new_task)
 
-    # 3. Передаем задачу в фоновый воркер Celery через .delay()
-    process_image_task.delay(str(task.id))
+    # Запуск Celery-задачи с передачей ключей S3
+    process_media_task.delay(str(new_task.id), storage_key, processed_key)
 
-    return task
+    return new_task
 
 
-@router.get("/{task_id}", response_model=schemas.MediaTaskResponse)
-async def get_media_task(
-    task_id: UUID,
+@router.get("/public", response_model=List[schemas.MediaTaskResponse])
+async def get_public_gallery(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(MediaTask)
+        .where(MediaTask.is_public == True)
+        .order_by(MediaTask.id.desc())
+    )
+    return result.scalars().all()
+
+
+@router.get("/my", response_model=List[schemas.MediaTaskResponse])
+async def get_my_gallery(
+    filter_type: str = "all",
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
-    """Получение конкретной задачи с проверкой прав доступа (публичная или владелец)."""
-    task = await crud.get_task_by_id(db=db, task_id=task_id)
+    query = select(MediaTask).where(MediaTask.owner_id == current_user.id)
+
+    if filter_type == "public":
+        query = query.where(MediaTask.is_public == True)
+    elif filter_type == "private":
+        query = query.where(MediaTask.is_public == False)
+
+    query = query.order_by(MediaTask.id.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/file/{task_id}/{file_type}")
+async def get_task_file(
+    task_id: uuid.UUID,
+    file_type: str,  # 'original' или 'processed'
+    db: AsyncSession = Depends(get_db),
+):
+    """Отдает байты файла напрямую из S3 через FastAPI по точному ключу из БД."""
+    result = await db.execute(select(MediaTask).where(MediaTask.id == task_id))
+    task = result.scalars().first()
+
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
+            detail="Задание не найдено",
         )
+
+    # Берем чистый S3 ключ напрямую из базы, никаких костыльных replace!
+    object_key = task.storage_key if file_type == "original" else task.processed_key
     
-    # Проверка прав: доступна, если она публичная ИЛИ текущий пользователь — владелец
-    if not task.is_public and task.owner_id != current_user.id:
+    if not object_key:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ключ файла в S3 отсутствует",
+        )
+
+    try:
+        file_bytes = download_file_from_s3(settings.S3_BUCKET_NAME, object_key)
+
+        # Автоматическое определение MIME-типа
+        media_type, _ = mimetypes.guess_type(object_key)
+        media_type = media_type or "image/png"
+
+        return Response(content=file_bytes, media_type=media_type)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ошибка чтения файла из S3: {e}",
+        )
+
+
+@router.get("/{task_id}", response_model=schemas.MediaTaskResponse)
+async def get_task_status(
+    task_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Получает статус конкретной задачи по её ID."""
+    result = await db.execute(select(MediaTask).where(MediaTask.id == task_id))
+    task = result.scalars().first()
+
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Задание не найдено",
         )
 
     return task
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_media_task(
-    task_id: UUID,
+async def delete_task(
+    task_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
-    """Удаление задачи."""
-    task = await crud.get_task_by_id(db=db, task_id=task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Проверка прав: удалять может только владелец
-    if task.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # При желании здесь можно добавить удаление файлов из S3 бакетов (media-originals и media-processed)
+    result = await db.execute(
+        select(MediaTask).where(
+            MediaTask.id == task_id, MediaTask.owner_id == current_user.id
+        )
+    )
+    task = result.scalars().first()
 
-    # Удаляем задачу из базы данных через CRUD
-    await crud.delete_media_task(db=db, task=task)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Задание не найдено или недостаточно прав",
+        )
+
+    # Удаляем оригинал и обработанный файл из S3 по точным ключам из БД
+    if task.storage_key:
+        try:
+            delete_file_from_s3(settings.S3_BUCKET_NAME, task.storage_key)
+        except Exception:
+            pass
+
+    if task.processed_key:
+        try:
+            delete_file_from_s3(settings.S3_BUCKET_NAME, task.processed_key)
+        except Exception:
+            pass
+
+    await db.delete(task)
+    await db.commit()
     return None

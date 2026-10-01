@@ -1,4 +1,3 @@
-# app/models.py
 from __future__ import annotations
 import enum
 import uuid
@@ -38,6 +37,10 @@ class MediaTask(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(512), nullable=False)
     processed_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    
+    # Добавляем поля для точных ключей в S3
+    storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    processed_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False

@@ -1,67 +1,97 @@
 import io
 import os
-import asyncio
-from uuid import UUID
-from celery import Celery
+import uuid
 from PIL import Image, ImageOps
-from app.config import settings
-from app.database import AsyncSessionLocal
-from app.models import TaskStatus
-from app import crud
-from app.storage import download_file_from_s3, upload_file_to_s3 # или твоя логика работы с файлами
+from celery import Celery
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
-celery_app = Celery(
-    "worker",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
-    broker_connection_retry_on_startup=True
+from app.config import settings
+from app.models import MediaTask, TaskStatus
+from app.storage import download_file_from_s3, upload_file_to_s3
+
+# Настройка Celery
+celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
+celery_app.conf.update(
+    broker_connection_retry_on_startup=True,
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
 )
 
-@celery_app.task(bind=True, name="process_image_task")
-def process_image_task(self, task_id: str):
-    async def async_process():
-        async with AsyncSessionLocal() as db:
-            # 1. Получаем задачу через асинхронный CRUD
-            task_uuid = UUID(task_id) if isinstance(task_id, str) else task_id
-            task = await crud.get_task_by_id(db, task_uuid)
-            if not task:
-                return
-            
-            # Обновляем статус на PROCESSING (если есть соответствующий метод или через прямое изменение)
-            task.status = TaskStatus.PROCESSING
-            await db.commit()
+# Безопасное получение DATABASE_URL с дефолтным значением
+db_url = getattr(settings, "DATABASE_URL", None) or os.getenv(
+    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/mediapulse"
+)
 
-            try:
-                # 2. Скачиваем файл из S3, используя точный путь из базы данных (storage_path)
-                # Если у вас файлы хранятся строго в S3:
-                file_bytes = download_file_from_s3(settings.S3_BUCKET_NAME, task.storage_path)
+# Преобразуем asyncpg в стандартный драйвер postgresql для синхронного SQLAlchemy в Celery
+SYNC_DATABASE_URL = db_url.replace("postgresql+asyncpg://", "postgresql://")
 
-                # 3. Обработка изображения (Pillow)
-                image = Image.open(io.BytesIO(file_bytes))
-                if image.mode in ("RGBA", "LA"):
-                    image = image.convert("RGB")
-                
-                processed_image = ImageOps.invert(image)
+engine = create_engine(SYNC_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-                output_buffer = io.BytesIO()
-                processed_image.save(output_buffer, format="JPEG")
-                processed_bytes = output_buffer.getvalue()
 
-                # 4. Загрузка результата
-                processed_path = f"uploads/processed_{task_id}.jpg"
-                # Если сохраняешь локально или в S3:
-                upload_file_to_s3(processed_bytes, "media-processed", processed_path)
+@celery_app.task(name="process_media_task")
+def process_media_task(task_id_str: str, storage_key: str, processed_key: str):
+    """
+    Фоновая задача Celery:
+    1. Скачивает файл из S3.
+    2. Инвертирует цвета изображения в RAM.
+    3. Сохраняет обработанный файл обратно в S3.
+    4. Обновляет статус записи в БД.
+    """
+    task_id = uuid.UUID(task_id_str)
+    db = SessionLocal()
 
-                # 5. Обновляем статус на COMPLETED
-                task.status = TaskStatus.COMPLETED
-                task.processed_path = processed_path
-                await db.commit()
+    try:
+        task = db.execute(select(MediaTask).where(MediaTask.id == task_id)).scalars().first()
+        if not task:
+            return f"Task {task_id_str} not found"
 
-            except Exception as e:
-                await db.rollback()
-                task.status = TaskStatus.FAILED
-                await db.commit()
-                raise e
+        task.status = TaskStatus.PROCESSING
+        db.commit()
 
-    # Запускаем асинхронный код внутри синхронной задачи Celery
-    asyncio.run(async_process())
+        # 1. Скачивание исходного изображения из S3
+        image_bytes = download_file_from_s3(settings.S3_BUCKET_NAME, storage_key)
+
+        # 2. Обработка изображения с использованием Pillow
+        image = Image.open(io.BytesIO(image_bytes))
+
+        if image.mode == "RGBA":
+            r, g, b, a = image.split()
+            rgb_image = Image.merge("RGB", (r, g, b))
+            inverted_image = ImageOps.invert(rgb_image)
+            r, g, b = inverted_image.split()
+            inverted_image = Image.merge("RGBA", (r, g, b, a))
+        else:
+            rgb_image = image.convert("RGB")
+            inverted_image = ImageOps.invert(rgb_image)
+
+        output_buffer = io.BytesIO()
+        inverted_image.save(output_buffer, format="PNG")
+        processed_bytes = output_buffer.getvalue()
+
+        # 3. Выгрузка обработанного изображения обратно в S3
+        upload_file_to_s3(
+            file_bytes=processed_bytes,
+            bucket_name=settings.S3_BUCKET_NAME,
+            object_name=processed_key,
+        )
+
+        # 4. Обновление статуса, ключа и путей в БД
+        task.processed_path = f"/api/v1/tasks/file/{task_id}/processed"  # <--- Обязательно с /api/v1!
+        task.processed_key = processed_key
+        task.status = TaskStatus.COMPLETED
+        db.commit()
+
+        return f"Task {task_id_str} completed successfully"
+
+    except Exception as e:
+        db.rollback()
+        task = db.execute(select(MediaTask).where(MediaTask.id == task_id)).scalars().first()
+        if task:
+            task.status = TaskStatus.FAILED
+            db.commit()
+        raise e
+    finally:
+        db.close()
