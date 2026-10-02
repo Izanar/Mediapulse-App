@@ -24,6 +24,10 @@ help:
 	@echo "  make deps-down - Остановка только инфраструктурных сервисов"
 
 install:
+@if [ ! -d ".venv" ]; then \
+		echo "Створення віртуального оточення..."; \
+		python3 -m venv .venv; \
+	fi
 	$(VENV_PIP) install -r requirements.txt
 
 dev:
