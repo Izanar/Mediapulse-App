@@ -24,7 +24,7 @@ help:
 	@echo "  make deps-down - Остановка только инфраструктурных сервисов"
 
 install:
-@if [ ! -d ".venv" ]; then \
+	@if [ ! -d ".venv" ]; then \
 		echo "Створення віртуального оточення..."; \
 		python3 -m venv .venv; \
 	fi
