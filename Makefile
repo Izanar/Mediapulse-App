@@ -4,6 +4,15 @@ VENV_UVICORN = .venv/bin/uvicorn
 
 include make/docker-bd.mk
 
+# Добавим переменыне из .env в окружение Makefile, если файл существует
+ifneq ( $(wildcard .env), )
+
+    include .env
+
+    export
+
+endif
+
 .PHONY: help install migrate dev up down build rebuild logs ps clean deps-up deps-down
 
 help:

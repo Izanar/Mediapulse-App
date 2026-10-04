@@ -8,7 +8,7 @@ up:
 
 down:
 	@echo "🛑 Остановка полного стека..."
-	docker compose down -v
+	docker compose down
 
 build:
 	@echo "🛠 Пересборка Docker-образов..."

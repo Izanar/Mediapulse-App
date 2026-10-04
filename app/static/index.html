@@ -34,7 +34,7 @@
                 <span class="tech-tag">Celery</span>
                 <span class="tech-tag">Redis</span>
                 <span class="tech-tag">PostgreSQL</span>
-                <span class="tech-tag">MinIO / S3</span>
+                <span class="tech-tag">Cloudflare R2 / S3</span>
                 <span class="tech-tag">Docker & K8s</span>
             </div>
         </section>
@@ -78,19 +78,28 @@
             </div>
         </section>
 
-        <!-- Основная рабочая зона (для авторизованных) -->
-        <section id="app-section" class="hidden margin-top">
-            <div class="card">
-                <h2>Загрузить новое изображение</h2>
-                <p class="section-desc">Выберите файл для асинхронной инверсии через Celery Worker</p>
-                <div id="upload-zone" class="upload-zone">
-                    <div class="upload-icon">📁</div>
-                    <p>Перетащите сюда картинку или кликните для выбора</p>
-                    <span class="file-hint">Поддерживаются PNG, JPG, JPEG, WEBP</span>
-                    <input type="file" id="file-input" accept="image/*" class="hidden">
-                </div>
-            </div>
-        </section>
+ <!-- Основная рабочая зона (для авторизованных) -->
+<section id="app-section" class="hidden margin-top">
+    <div class="card">
+        <h2>Загрузить новое изображение</h2>
+        <p class="section-desc">Выберите файл для асинхронной инверсии через Celery Worker</p>
+        
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-icon">📁</div>
+            <p>Перетащите сюда картинку или кликните для выбора</p>
+            <span class="file-hint">Поддерживаются PNG, JPG, JPEG, WEBP</span>
+            <input type="file" id="file-input" accept="image/*" class="hidden">
+        </div>
+
+        <!-- Добавленный чекбокс приватности -->
+        <div style="margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <input type="checkbox" id="is-public-checkbox" checked style="cursor: pointer; width: 16px; height: 16px;">
+            <label for="is-public-checkbox" style="color: var(--text-muted, #94a3b8); font-size: 0.9rem; cursor: pointer; user-select: none;">
+                Сделать файл публичным
+            </label>
+        </div>
+    </div>
+</section>
 
         <!-- Галерея / Список задач -->
         <section class="card margin-top">
@@ -106,6 +115,7 @@
                 <p class="empty-msg">Загрузка данных...</p>
             </div>
         </section>
+
     </main>
 </body>
 </html>

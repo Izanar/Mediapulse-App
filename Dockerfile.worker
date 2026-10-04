@@ -5,6 +5,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# Для работы Pillow и образов
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
