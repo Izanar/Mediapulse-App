@@ -7,7 +7,7 @@
 [![Celery](https://img.shields.io/badge/Celery-Async%20Worker-green?style=for-the-badge&logo=celery)](https://docs.celeryq.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Cloudflare R2](https://img.shields.io/badge/Cloudflare-R2-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://www.cloudflare.com/)
-[![CI / CD](https://github.com/&lt;YOUR-GITHUB-USERNAME&gt;/mediapulse-app/actions/workflows/ci.yml/badge.svg)](https://github.com/&lt;YOUR-GITHUB-USERNAME&gt;/mediapulse-app/actions)
+[![CI / CD](https://github.com/Izanar/Mediapulse-App/actions/workflows/ci.yml/badge.svg)](https://github.com/Izanar/Mediapulse-App/actions)
 
 </div>
 
