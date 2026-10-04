@@ -19,7 +19,7 @@ async def register(user_in: schemas.UserCreate, db: AsyncSession = Depends(get_d
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь с таким именем уже существует"
         )
-    return await crud.create_user(db=db, user=user_in)
+    return await crud.create_user(db=db, user_in=user_in)
 
 
 @router.post("/login", response_model=schemas.Token)

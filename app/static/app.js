@@ -1,5 +1,5 @@
 const API_URL = '/api/v1';
-const S3_BASE_URL = 'http://localhost:9000/mediapulse-storage'; // Налаштуйте під ваш S3/MinIO
+const S3_BASE_URL = 'https://158b52dcae768c7b229bb581dfec81b5.r2.cloudflarestorage.com/media-originals'; // Налаштуйте під ваш S3/MinIO
 
 let currentFilter = 'all';
 let pollingTimer = null;
@@ -215,7 +215,9 @@ async function handleFileUpload(file) {
         return;
     }
 
-    const isPublic = confirm("Зробити файл публічним?");
+    // Читаем значение из чекбокса вместо confirm()
+    const isPublicCheckbox = document.getElementById('is-public-checkbox');
+    const isPublic = isPublicCheckbox ? isPublicCheckbox.checked : true;
 
     const formData = new FormData();
     formData.append('file', file);
@@ -293,6 +295,27 @@ function checkPendingTasks(tasks) {
     }
 }
 
+// Хелпер для формирования корректного URL к файлам через FastAPI бэкенд
+function formatUrl(path) {
+    if (!path) return '';
+    
+    // 1. Если это полный URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+
+    // 2. Удаляем ВСЕ дублирующиеся префиксы /api/v1 с помощью регулярного выражения с флагом g
+    let cleanPath = path.replace(/^(\/api\/v1)+/g, '').replace(/^(api\/v1)+/g, '');
+
+    // 3. Убеждаемся, что путь начинается с одного слэша
+    if (!cleanPath.startsWith('/')) {
+        cleanPath = '/' + cleanPath;
+    }
+
+    // Итоговый путь всегда будет содержать ровно один /api/v1
+    return `${API_URL}${cleanPath}`;
+}
+
 function renderTaskList(tasks) {
     const tasksList = document.getElementById('tasks-list');
     if (!tasksList) return;
@@ -304,18 +327,13 @@ function renderTaskList(tasks) {
 
     const token = localStorage.getItem('token');
 
+    // Важно: параметром указано (t => ...), поэтому внутри обращение должно быть именно t.id, t.storage_path и т.д.
     tasksList.innerHTML = tasks.map(t => {
-        const formatUrl = (path) => {
-            if (!path) return '';
-            if (path.startsWith('http://') || path.startsWith('https://')) return path;
-            return path.startsWith('/') ? path : `/${path}`;
-        };
-
         const origUrl = formatUrl(t.storage_path);
-        const procUrl = t.processed_path ? formatUrl(t.processed_path) : origUrl;
-        const currentDisplayUrl = t.processed_path ? procUrl : origUrl;
+        const procUrl = t.processed_path ? formatUrl(t.processed_path) : null;
+        const currentDisplayUrl = procUrl || origUrl;
         const fileName = t.original_filename || t.user_filename || 'Завантажений файл';
-        const isProcActive = !!t.processed_path;
+        const isProcAvailable = !!procUrl;
 
         return `
             <div id="task-${t.id}" style="background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 8px; margin-top: 0.75rem; border: 1px solid var(--card-border, #1e293b);">
@@ -328,11 +346,11 @@ function renderTaskList(tasks) {
                         <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">${t.status}</span>
                     </div>
                 </div>
-                
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem;">
-                        <button id="btn-orig-${t.id}" onclick="switchView('${t.id}', '${origUrl}', 'orig')" class="toggle-btn ${!isProcActive ? 'active' : ''}">Оригінал</button>
-                        ${t.processed_path ? `<button id="btn-proc-${t.id}" onclick="switchView('${t.id}', '${procUrl}', 'proc')" class="toggle-btn ${isProcActive ? 'active' : ''}">Інверсія</button>` : ''}
+                        <button id="btn-orig-${t.id}" onclick="switchView('${t.id}', '${origUrl}', 'orig')" class="toggle-btn ${!isProcAvailable ? 'active' : ''}">Оригінал</button>
+                        ${isProcAvailable ? `<button id="btn-proc-${t.id}" onclick="switchView('${t.id}', '${procUrl}', 'proc')" class="toggle-btn active">Інверсія</button>` : ''}
                     </div>
                     ${token ? `<button onclick="deleteTask('${t.id}')" style="font-size: 0.75rem; padding: 4px 8px; background: #ef4444; border: none; color: white; border-radius: 4px; cursor: pointer;">Видалити</button>` : ''}
                 </div>
