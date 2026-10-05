@@ -4,19 +4,11 @@ VENV_UVICORN = .venv/bin/uvicorn
 
 include make/docker-bd.mk
 
-# Добавим переменыне из .env в окружение Makefile, если файл существует
-ifneq ( $(wildcard .env), )
-
-    include .env
-
-    export
-
-endif
-
 .PHONY: help install migrate dev up down build rebuild logs ps clean deps-up deps-down
 
 help:
 	@echo "Доступные команды:"
+	@echo "  make init-tools   - Инициализация инструментов (mediapulse-bootstrap)"
 	@echo "  make install   - Установка/обновление зависимостей из requirements.txt"
 	@echo "  make dev       - Запуск FastAPI локально через Uvicorn (.venv)"
 	@echo "  make migrate   - Применение миграций Alembic (.venv)"
@@ -31,7 +23,15 @@ help:
 	@echo "  --- Только инфраструктура ---"
 	@echo "  make deps-up   - Запуск только Postgres, Redis и MinIO"
 	@echo "  make deps-down - Остановка только инфраструктурных сервисов"
+	@echo "  make cluster-up   - Запуск Kubernetes кластера"
+	@echo "  make cluster-down - Остановка Kubernetes кластера"
 
+init-tools:
+	@if [ -f ../Mediapulse-Bootstrap/setup.sh ]; then \
+		chmod +x ../Mediapulse-Bootstrap/setup.sh && ../Mediapulse-Bootstrap/setup.sh; \
+	else \
+		echo "⚠️ Репозиторий mediapulse-bootstrap не найден рядом!"; \
+	fi
 install:
 	@if [ ! -d ".venv" ]; then \
 		echo "Створення віртуального оточення..."; \
