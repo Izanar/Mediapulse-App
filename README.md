@@ -22,7 +22,7 @@
 * **Database & ORM:** PostgreSQL 16 + SQLAlchemy 2.0 (asyncpg) + Alembic
 * **Cloud Storage:** Cloudflare R2 (S3-совместимый API, `boto3`)
 * **Image Processing:** Pillow (PIL)
-* **CI/CD:** GitHub Actions (автоматический линтинг, тестирование и публикация образов в GHCR)
+* **CI/CD:** GitHub Actions (автоматический линтинг, тестирование и публикация образов в GHCR) + ArgoCD + Helm (Kubernetes / Kind)
 
 ---
 

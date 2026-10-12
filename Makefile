@@ -7,34 +7,24 @@ include make/docker-bd.mk
 .PHONY: help install migrate dev up down build rebuild logs ps clean deps-up deps-down
 
 help:
-	@echo "Доступные команды:"
-	@echo "  make init-tools   - Инициализация инструментов (mediapulse-bootstrap)"
-	@echo "  make install   - Установка/обновление зависимостей из requirements.txt"
-	@echo "  make dev       - Запуск FastAPI локально через Uvicorn (.venv)"
-	@echo "  make migrate   - Применение миграций Alembic (.venv)"
-	@echo "  --- Docker Compose (Полный стек) ---"
-	@echo "  make up        - Запуск всего стека (Postgres, Redis, MinIO, API, Worker)"
-	@echo "  make down      - Остановка всего стека"
+	@echo "Доступные команды приложения:"
+	@echo "  make install   - Установка зависимостей из requirements.txt в виртуальное окружение"
+	@echo "  make dev       - Запуск FastAPI локально через Uvicorn"
+	@echo "  --- Docker Compose (Локальный запуск) ---"
+	@echo "  make up        - Запуск полного стека (Postgres, Redis, API, Worker)"
+	@echo "  make down      - Остановка полного стека"
 	@echo "  make build     - Пересборка Docker-образов"
-	@echo "  make rebuild   - Чистая пересборка Docker-образов без кэша"
-	@echo "  make clean     - Полная очистка: остановка, удаление volumes и кэша Docker"
-	@echo "  make logs      - Просмотр логов всех контейнеров"
-	@echo "  make ps        - Статус запущенных контейнеров"
-	@echo "  --- Только инфраструктура ---"
-	@echo "  make deps-up   - Запуск только Postgres, Redis и MinIO"
-	@echo "  make deps-down - Остановка только инфраструктурных сервисов"
-	@echo "  make cluster-up   - Запуск Kubernetes кластера"
-	@echo "  make cluster-down - Остановка Kubernetes кластера"
+	@echo "  make rebuild   - Чистая пересборка без кэша"
+	@echo "  make clean     - Полная очистка Docker-ресурсов"
+	@echo "  make logs      - Просмотр логов"
+	@echo "  make ps        - Статус контейнеров"
+	@echo "  --- Инфраструктура (только базы и кэш) ---"
+	@echo "  make deps-up   - Запуск только Postgres и Redis"
+	@echo "  make deps-down - Остановка инфраструктурных сервисов"
 
-init-tools:
-	@if [ -f ../Mediapulse-Bootstrap/setup.sh ]; then \
-		chmod +x ../Mediapulse-Bootstrap/setup.sh && ../Mediapulse-Bootstrap/setup.sh; \
-	else \
-		echo "⚠️ Репозиторий mediapulse-bootstrap не найден рядом!"; \
-	fi
 install:
 	@if [ ! -d ".venv" ]; then \
-		echo "Створення віртуального оточення..."; \
+		echo "Создание виртуального окружения..."; \
 		python3 -m venv .venv; \
 	fi
 	$(VENV_PIP) install -r requirements.txt
