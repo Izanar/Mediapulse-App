@@ -251,6 +251,57 @@ body {
 .toggle-btn.active {
     background: var(--accent-color, #3b82f6);
 }
+
+.media-processing,
+.media-preview {
+    margin-top: 0.75rem;
+    text-align: center;
+}
+
+.media-processing {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+}
+
+.media-progress {
+    width: min(100%, 28rem);
+    height: 0.6rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.media-progress-bar {
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-color);
+    animation: media-progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+.media-processing-error {
+    margin-top: 0.75rem;
+    color: #f87171;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+@keyframes media-progress-indeterminate {
+    from { transform: translateX(-110%); }
+    to { transform: translateX(260%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .media-progress-bar {
+        animation: none;
+        transform: translateX(75%);
+    }
+}
+
 /* Toast-уведомления */
 #toast-container {
     position: fixed;
