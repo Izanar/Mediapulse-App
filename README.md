@@ -31,7 +31,7 @@
 Перед запуском задайте свои параметры в `.env.example`, включая уникальный JWT-ключ и доступы к Cloudflare R2. Сгенерировать ключ можно командой:
 
 ```bash
-python -c 'import secrets; print(secrets.token_urlsafe(32))'
+python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
 ```
 
 Вставьте выведенное значение в `SECRET_KEY` в `.env.example`, настройте остальные параметры и затем скопируйте готовый файл:
