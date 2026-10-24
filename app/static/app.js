@@ -283,8 +283,11 @@ async function loadPublicGallery() {
 // Перевіряє, чи є завдання у статусі PENDING, та запускає оновлення
 function checkPendingTasks(tasks) {
     clearTimeout(pollingTimer);
-    const hasPending = tasks.some(t => t.status?.toLowerCase() === 'pending');
-    if (hasPending) {
+    const hasTasksInProgress = tasks.some(t => {
+        const status = t.status?.toLowerCase();
+        return status === 'pending' || status === 'processing';
+    });
+    if (hasTasksInProgress) {
         pollingTimer = setTimeout(() => {
             if (localStorage.getItem('token')) {
                 loadMyTasks(currentFilter);
@@ -331,9 +334,26 @@ function renderTaskList(tasks) {
     tasksList.innerHTML = tasks.map(t => {
         const origUrl = formatUrl(t.storage_path);
         const procUrl = t.processed_path ? formatUrl(t.processed_path) : null;
-        const currentDisplayUrl = procUrl || origUrl;
         const fileName = t.original_filename || t.user_filename || 'Завантажений файл';
-        const isProcAvailable = !!procUrl;
+        const status = t.status?.toLowerCase();
+        const isProcessing = status === 'pending' || status === 'processing';
+        const isProcAvailable = status === 'completed' && !!procUrl;
+        const isFailed = status === 'failed';
+        const mediaContent = isProcessing
+            ? `
+                <div class="media-processing" role="status" aria-live="polite">
+                    <span>Обробка зображення...</span>
+                    <div class="media-progress" role="progressbar" aria-label="Обробка зображення">
+                        <span class="media-progress-bar"></span>
+                    </div>
+                </div>
+            `
+            : `
+                ${isFailed ? '<p class="media-processing-error" role="status">Не вдалося обробити зображення. Показано оригінал.</p>' : ''}
+                <div class="media-preview">
+                    <img id="img-preview-${t.id}" src="${origUrl}" alt="${fileName}" style="max-width: 100%; max-height: 250px; border-radius: 6px; object-fit: contain;">
+                </div>
+            `;
 
         return `
             <div id="task-${t.id}" style="background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 8px; margin-top: 0.75rem; border: 1px solid var(--card-border, #1e293b);">
@@ -349,15 +369,13 @@ function renderTaskList(tasks) {
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem;">
-                        <button id="btn-orig-${t.id}" onclick="switchView('${t.id}', '${origUrl}', 'orig')" class="toggle-btn ${!isProcAvailable ? 'active' : ''}">Оригінал</button>
-                        ${isProcAvailable ? `<button id="btn-proc-${t.id}" onclick="switchView('${t.id}', '${procUrl}', 'proc')" class="toggle-btn active">Інверсія</button>` : ''}
+                        ${!isProcessing ? `<button id="btn-orig-${t.id}" onclick="switchView('${t.id}', '${origUrl}', 'orig')" class="toggle-btn active">Оригінал</button>` : ''}
+                        ${isProcAvailable ? `<button id="btn-proc-${t.id}" onclick="switchView('${t.id}', '${procUrl}', 'proc')" class="toggle-btn">Інверсія</button>` : ''}
                     </div>
                     ${token ? `<button onclick="deleteTask('${t.id}')" style="font-size: 0.75rem; padding: 4px 8px; background: #ef4444; border: none; color: white; border-radius: 4px; cursor: pointer;">Видалити</button>` : ''}
                 </div>
 
-                <div style="margin-top: 0.75rem; text-align: center;">
-                    <img id="img-preview-${t.id}" src="${currentDisplayUrl}" alt="${fileName}" style="max-width: 100%; max-height: 250px; border-radius: 6px; object-fit: contain;">
-                </div>
+                ${mediaContent}
             </div>
         `;
     }).join('');
