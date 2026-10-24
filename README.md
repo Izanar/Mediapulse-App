@@ -26,7 +26,9 @@
 
 В локальном Kind UI/API доступны по адресу `https://mediapulse.izanar.dev/`
 через Cloudflare Tunnel; Argo CD и административные панели защищаются
-Cloudflare Access.
+Cloudflare Access. Публичный HTTPS завершается на Cloudflare; connector
+передаёт запросы Traefik по внутреннему HTTP, поэтому это не сквозной TLS
+внутри кластера.
 
 ---
 
@@ -40,7 +42,7 @@ cp -n .env.example .env
 
 Для локального Kind также заполните `CLOUDFLARE_TUNNEL_TOKEN` в `.env`
 значением connector token из Cloudflare Dashboard. Инфраструктурный bootstrap
-перенесёт его в `~/.config/mediapulse/cloudflare/tunnel-token` с правами `0600`;
-переменная не загружается в Vault/Kubernetes и не должна попадать в Git. Если
-`.env` уже существует, не перезаписывайте его: добавьте туда строку
+передаст его в Vault; External Secrets Operator создаст Kubernetes Secret,
+который монтируется в Pod `cloudflared`. Не коммитьте token и не публикуйте его.
+Если `.env` уже существует, не перезаписывайте его: добавьте туда строку
 `CLOUDFLARE_TUNNEL_TOKEN=` из `.env.example` и заполните значение локально.

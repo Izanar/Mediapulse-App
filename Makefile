@@ -11,20 +11,14 @@ help:
 	@echo "  make init-tools   - Инициализация инструментов (mediapulse-bootstrap)"
 	@echo "  make install   - Установка/обновление зависимостей из requirements.txt"
 	@echo "  make dev       - Запуск FastAPI локально через Uvicorn (.venv)"
-	@echo "  make migrate   - Применение миграций Alembic (.venv)"
 	@echo "  --- Docker Compose (Полный стек) ---"
-	@echo "  make up        - Запуск всего стека (Postgres, Redis, MinIO, API, Worker)"
+	@echo "  make up        - Запуск стека (Postgres, Redis, API, Worker)"
 	@echo "  make down      - Остановка всего стека"
 	@echo "  make build     - Пересборка Docker-образов"
 	@echo "  make rebuild   - Чистая пересборка Docker-образов без кэша"
-	@echo "  make clean     - Полная очистка: остановка, удаление volumes и кэша Docker"
+	@echo "  make clean     - Удаление Compose volumes и системная очистка Docker (включая volumes)"
 	@echo "  make logs      - Просмотр логов всех контейнеров"
 	@echo "  make ps        - Статус запущенных контейнеров"
-	@echo "  --- Только инфраструктура ---"
-	@echo "  make deps-up   - Запуск только Postgres, Redis и MinIO"
-	@echo "  make deps-down - Остановка только инфраструктурных сервисов"
-	@echo "  make cluster-up   - Запуск Kubernetes кластера"
-	@echo "  make cluster-down - Остановка Kubernetes кластера"
 
 init-tools:
 	@if [ -f ../Mediapulse-Bootstrap/setup.sh ]; then \
