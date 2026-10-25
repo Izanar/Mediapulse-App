@@ -143,6 +143,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Ограничение числа версий пакетов в GHCR: оставляем 10 последних
+      - name: Cleanup old API images in GHCR
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: mediapulse-app/api
+          package-type: container
+          min-versions-to-keep: 10
+
+      - name: Cleanup old Worker images in GHCR
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: mediapulse-app/worker
+          package-type: container
+          min-versions-to-keep: 10
+
   # Авто-обновление тега образа в GitOps возложено на ArgoCD Image Updater
   # (устанавливается в кластере, см. Mediapulse-Gitops/local/argocd/image-updater-app.yaml).
   # CI только собирает и пушит образ в GHCR.
