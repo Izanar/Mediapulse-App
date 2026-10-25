@@ -15,7 +15,6 @@ __pycache__/
 # Local Environments & Secrets
 .env
 .env.*
-!.env.example
 
 # Docker / Logs / Docs
 Dockerfile*
