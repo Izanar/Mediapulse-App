@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -9,11 +8,12 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models import User
 
 # --- Конфигурация ---
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-me")
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
 

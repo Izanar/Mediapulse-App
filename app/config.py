@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +28,13 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
     S3_BUCKET_NAME: str
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, value: str) -> str:
+        if len(value.strip()) < 43:
+            raise ValueError("SECRET_KEY must contain at least 43 characters")
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env",
