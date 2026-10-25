@@ -130,3 +130,7 @@ jobs:
           labels: ${{ steps.meta-worker.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Авто-обновление тега образа в GitOps возложено на ArgoCD Image Updater
+  # (устанавливается в кластере, см. Mediapulse-Gitops/local/argocd/image-updater-app.yaml).
+  # CI только собирает и пушит образ в GHCR.

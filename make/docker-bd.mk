@@ -28,15 +28,3 @@ logs:
 
 ps:
 	docker compose ps
-
-# --- Локальная разработка (Только БД + Redis + MinIO) ---
-
-deps-up:
-	@echo "🔍 Проверка и очистка старых контейнеров..."
-	@docker rm -f mediapulse-postgres mediapulse-redis mediapulse-minio mediapulse-createbuckets >/dev/null 2>&1 || true
-	@echo "🚀 Запуск фоновых зависимостей (Postgres, Redis & MinIO)..."
-	docker compose -f docker-compose.deps.yml up -d
-
-deps-down:
-	@echo "🛑 Остановка и удаление зависимостей..."
-	docker compose -f docker-compose.deps.yml down -v
