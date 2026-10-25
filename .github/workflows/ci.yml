@@ -83,7 +83,19 @@ jobs:
           docker compose ps
 
       - name: Check API Health Endpoint
-        run: curl --fail http://localhost:8000/health || exit 1
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://localhost:8000/health; then
+              echo ""
+              echo "✅ API health check passed"
+              exit 0
+            fi
+            echo "⏳ API not ready yet (attempt $i/30)..."
+            sleep 2
+          done
+          echo "❌ API health check failed"
+          docker compose logs api --tail=50
+          exit 1
 
       - name: Down Compose
         if: always()
