@@ -8,8 +8,7 @@ include make/docker-bd.mk
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make init-tools   - Инициализация инструментов (mediapulse-bootstrap)"
-	@echo "  make install   - Установка/обновление зависимостей из requirements.txt"
+	@echo "  make install   - Системные зависимости + venv + pip install -r requirements.txt"
 	@echo "  make dev       - Запуск FastAPI локально через Uvicorn (.venv)"
 	@echo "  --- Docker Compose (Полный стек) ---"
 	@echo "  make up        - Запуск стека (Postgres, Redis, API, Worker)"
@@ -20,17 +19,18 @@ help:
 	@echo "  make logs      - Просмотр логов всех контейнеров"
 	@echo "  make ps        - Статус запущенных контейнеров"
 
-init-tools:
-	@if [ -f ../Mediapulse-Bootstrap/setup.sh ]; then \
-		chmod +x ../Mediapulse-Bootstrap/setup.sh && ../Mediapulse-Bootstrap/setup.sh; \
-	else \
-		echo "⚠️ Репозиторий mediapulse-bootstrap не найден рядом!"; \
-	fi
 install:
+	@if ! command -v python3.12 >/dev/null 2>&1; then \
+		echo "📦 Установка python3.12, python3.12-venv, python3-pip..."; \
+		sudo apt-get update -y && sudo apt-get install -y python3.12 python3.12-venv python3-pip; \
+	else \
+		echo "✅ python3.12 уже установлен."; \
+	fi
 	@if [ ! -d ".venv" ]; then \
 		echo "Створення віртуального оточення..."; \
-		python3 -m venv .venv; \
+		python3.12 -m venv .venv; \
 	fi
+	$(VENV_PIP) install --upgrade pip --quiet
 	$(VENV_PIP) install -r requirements.txt
 
 dev:
